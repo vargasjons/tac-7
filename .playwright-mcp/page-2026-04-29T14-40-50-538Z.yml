@@ -1,0 +1,100 @@
+- generic [ref=e3]:
+  - heading "Natural Language SQL Interface" [level=1] [ref=e4]
+  - generic [ref=e5]:
+    - textbox "Ask a question about your data... (e.g., 'Show me users who signed up last week')" [ref=e6]
+    - generic [ref=e7]:
+      - generic [ref=e8]:
+        - button "Query" [ref=e9] [cursor=pointer]
+        - button "Upload" [ref=e10] [cursor=pointer]
+      - button "Generate Random Query" [ref=e11] [cursor=pointer]
+  - generic [ref=e46]:
+    - generic [ref=e47]:
+      - heading "Query Results" [level=2] [ref=e48]
+      - generic [ref=e49]:
+        - button "📊 CSV" [ref=e50] [cursor=pointer]
+        - button "Hide" [ref=e51] [cursor=pointer]
+    - generic [ref=e52]:
+      - generic [ref=e53]:
+        - strong [ref=e54]: "Query:"
+        - text: SELECT * FROM users LIMIT 5
+      - generic [ref=e55]:
+        - strong [ref=e56]: "SQL:"
+        - code [ref=e57]: SELECT * FROM users LIMIT 5;
+    - table [ref=e59]:
+      - rowgroup [ref=e60]:
+        - row "id name email signup_date age city" [ref=e61]:
+          - columnheader "id" [ref=e62]
+          - columnheader "name" [ref=e63]
+          - columnheader "email" [ref=e64]
+          - columnheader "signup_date" [ref=e65]
+          - columnheader "age" [ref=e66]
+          - columnheader "city" [ref=e67]
+      - rowgroup [ref=e68]:
+        - row "1 John Doe john@example.com 2025-10-15 28 New York" [ref=e69]:
+          - cell "1" [ref=e70]
+          - cell "John Doe" [ref=e71]
+          - cell "john@example.com" [ref=e72]
+          - cell "2025-10-15" [ref=e73]
+          - cell "28" [ref=e74]
+          - cell "New York" [ref=e75]
+        - row "2 Jane Smith jane@example.com 2025-10-20 32 Los Angeles" [ref=e76]:
+          - cell "2" [ref=e77]
+          - cell "Jane Smith" [ref=e78]
+          - cell "jane@example.com" [ref=e79]
+          - cell "2025-10-20" [ref=e80]
+          - cell "32" [ref=e81]
+          - cell "Los Angeles" [ref=e82]
+        - row "3 Bob Johnson bob@example.com 2025-11-01 45 Chicago" [ref=e83]:
+          - cell "3" [ref=e84]
+          - cell "Bob Johnson" [ref=e85]
+          - cell "bob@example.com" [ref=e86]
+          - cell "2025-11-01" [ref=e87]
+          - cell "45" [ref=e88]
+          - cell "Chicago" [ref=e89]
+        - row "4 Alice Brown alice@example.com 2025-11-10 27 Houston" [ref=e90]:
+          - cell "4" [ref=e91]
+          - cell "Alice Brown" [ref=e92]
+          - cell "alice@example.com" [ref=e93]
+          - cell "2025-11-10" [ref=e94]
+          - cell "27" [ref=e95]
+          - cell "Houston" [ref=e96]
+        - row "5 Charlie Wilson charlie@example.com 2025-11-15 35 Phoenix" [ref=e97]:
+          - cell "5" [ref=e98]
+          - cell "Charlie Wilson" [ref=e99]
+          - cell "charlie@example.com" [ref=e100]
+          - cell "2025-11-15" [ref=e101]
+          - cell "35" [ref=e102]
+          - cell "Phoenix" [ref=e103]
+  - generic [ref=e12]:
+    - heading "Available Tables" [level=3] [ref=e13]
+    - generic [ref=e14]:
+      - generic [ref=e16]:
+        - generic [ref=e17]:
+          - generic [ref=e18]:
+            - generic [ref=e19]: users
+            - generic [ref=e20]: 20 rows, 6 columns
+          - generic [ref=e21]:
+            - button "📊 CSV" [ref=e22] [cursor=pointer]
+            - button "×" [ref=e23] [cursor=pointer]
+        - generic [ref=e24]:
+          - generic [ref=e25]: id🔢 INTEGER
+          - generic [ref=e26]: name📝 TEXT
+          - generic [ref=e27]: email📝 TEXT
+          - generic [ref=e28]: signup_date📝 TEXT
+          - generic [ref=e29]: age🔢 INTEGER
+          - generic [ref=e30]: city📝 TEXT
+      - generic [ref=e31]:
+        - generic [ref=e32]:
+          - generic [ref=e33]:
+            - generic [ref=e34]: products
+            - generic [ref=e35]: 32 rows, 6 columns
+          - generic [ref=e36]:
+            - button "📊 CSV" [ref=e37] [cursor=pointer]
+            - button "×" [ref=e38] [cursor=pointer]
+        - generic [ref=e39]:
+          - generic [ref=e40]: product_id🔢 INTEGER
+          - generic [ref=e41]: product_name📝 TEXT
+          - generic [ref=e42]: category📝 TEXT
+          - generic [ref=e43]: price💯 REAL
+          - generic [ref=e44]: stock_quantity🔢 INTEGER
+          - generic [ref=e45]: last_restocked📝 TEXT
