@@ -6,7 +6,7 @@
         "@playwright/mcp@latest",
         "--isolated",
         "--config",
-        "./playwright-mcp-config.json"
+        "/Users/jonathanvargas/projects/tac-7/trees/5dd7c3ee/playwright-mcp-config.json"
       ]
     }
   }
