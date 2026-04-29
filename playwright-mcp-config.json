@@ -6,7 +6,7 @@
     },
     "contextOptions": {
       "recordVideo": {
-        "dir": "./videos",
+        "dir": "/Users/jonathanvargas/projects/tac-7/trees/5dd7c3ee/videos",
         "size": {
           "width": 1920,
           "height": 1080
