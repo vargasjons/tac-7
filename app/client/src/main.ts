@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initializeQueryInput();
   initializeFileUpload();
   initializeModal();
+  initializeSectionDragDrop();
   initializeRandomQueryButton();
   loadDatabaseSchema();
 });
@@ -154,6 +155,50 @@ function initializeFileUpload() {
     if (files && files.length > 0) {
       handleFileUpload(files[0]);
     }
+  });
+}
+
+// Section-level drag-and-drop targets
+function initializeSectionDragDrop() {
+  const targets = [
+    document.getElementById('query-section') as HTMLElement,
+    document.getElementById('tables-section') as HTMLElement,
+  ];
+
+  targets.forEach(section => {
+    const overlayId = `${section.id}-drop-overlay`;
+    const overlay = document.getElementById(overlayId) as HTMLElement;
+    let dragCounter = 0;
+
+    section.addEventListener('dragenter', (e) => {
+      if (!e.dataTransfer?.types.includes('Files')) return;
+      e.preventDefault();
+      dragCounter++;
+      overlay.classList.add('visible');
+    });
+
+    section.addEventListener('dragleave', () => {
+      dragCounter--;
+      if (dragCounter <= 0) {
+        dragCounter = 0;
+        overlay.classList.remove('visible');
+      }
+    });
+
+    section.addEventListener('dragover', (e) => {
+      if (!e.dataTransfer?.types.includes('Files')) return;
+      e.preventDefault();
+    });
+
+    section.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dragCounter = 0;
+      overlay.classList.remove('visible');
+      const files = e.dataTransfer?.files;
+      if (files && files.length > 0) {
+        handleFileUpload(files[0]);
+      }
+    });
   });
 }
 
