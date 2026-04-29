@@ -21,7 +21,9 @@ from core.data_models import (
     ColumnInfo,
     RandomQueryResponse,
     ExportRequest,
-    QueryExportRequest
+    QueryExportRequest,
+    JsonExportRequest,
+    QueryJsonExportRequest
 )
 from core.file_processor import convert_csv_to_sqlite, convert_json_to_sqlite, convert_jsonl_to_sqlite
 from core.llm_processor import generate_sql, generate_random_query
@@ -33,7 +35,7 @@ from core.sql_security import (
     check_table_exists,
     SQLSecurityError
 )
-from core.export_utils import generate_csv_from_data, generate_csv_from_table
+from core.export_utils import generate_csv_from_data, generate_csv_from_table, generate_json_from_data, generate_json_from_table
 
 # Load .env file from server directory
 load_dotenv()
@@ -362,6 +364,55 @@ async def export_query_results(request: QueryExportRequest) -> Response:
         logger.error(f"[ERROR] Query export failed: {str(e)}")
         logger.error(f"[ERROR] Full traceback:\n{traceback.format_exc()}")
         raise HTTPException(500, f"Error exporting query results: {str(e)}")
+
+@app.post("/api/export/table-json")
+async def export_table_json(request: JsonExportRequest) -> Response:
+    """Export a table as JSON file"""
+    try:
+        validate_identifier(request.table_name, "table")
+
+        conn = sqlite3.connect("db/database.db")
+
+        if not check_table_exists(conn, request.table_name):
+            conn.close()
+            raise HTTPException(404, f"Table '{request.table_name}' not found")
+
+        json_data = generate_json_from_table(conn, request.table_name)
+        conn.close()
+
+        return Response(
+            content=json_data,
+            media_type="application/json",
+            headers={
+                "Content-Disposition": f'attachment; filename="{request.table_name}.json"'
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[ERROR] Table JSON export failed: {str(e)}")
+        logger.error(f"[ERROR] Full traceback:\n{traceback.format_exc()}")
+        raise HTTPException(500, f"Error exporting table as JSON: {str(e)}")
+
+
+@app.post("/api/export/query-json")
+async def export_query_results_json(request: QueryJsonExportRequest) -> Response:
+    """Export query results as JSON file"""
+    try:
+        json_data = generate_json_from_data(request.data, request.columns)
+
+        return Response(
+            content=json_data,
+            media_type="application/json",
+            headers={
+                "Content-Disposition": 'attachment; filename="query_results.json"'
+            }
+        )
+    except Exception as e:
+        logger.error(f"[ERROR] Query JSON export failed: {str(e)}")
+        logger.error(f"[ERROR] Full traceback:\n{traceback.format_exc()}")
+        raise HTTPException(500, f"Error exporting query results as JSON: {str(e)}")
+
 
 if __name__ == "__main__":
     import uvicorn

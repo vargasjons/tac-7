@@ -93,3 +93,11 @@ class ExportRequest(BaseModel):
 class QueryExportRequest(BaseModel):
     data: List[Dict[str, Any]] = Field(..., description="Query result data to export")
     columns: List[str] = Field(..., description="Column names for the export")
+
+# JSON Export Models (separate from CSV models to allow future divergence, e.g. pretty_print option)
+class JsonExportRequest(BaseModel):
+    table_name: str = Field(..., description="Name of the table to export as JSON")
+
+class QueryJsonExportRequest(BaseModel):
+    data: List[Dict[str, Any]] = Field(..., description="Query result data to export as JSON")
+    columns: List[str] = Field(..., description="Column names for the JSON export")
