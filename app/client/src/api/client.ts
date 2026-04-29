@@ -113,6 +113,17 @@ export const api = {
     window.URL.revokeObjectURL(url);
   },
   
+  // Generate synthetic data rows for a table
+  async generateTableData(tableName: string): Promise<GenerateDataResponse> {
+    return apiRequest<GenerateDataResponse>('/generate-data', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ table_name: tableName, row_count: 10 })
+    });
+  },
+
   // Export query results as CSV
   async exportQueryResults(data: any[], columns: string[]): Promise<void> {
     const response = await fetch(`${API_BASE_URL}/export/query`, {

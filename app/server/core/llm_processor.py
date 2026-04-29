@@ -1,5 +1,6 @@
 import os
-from typing import Dict, Any
+import json
+from typing import Dict, Any, List
 from openai import OpenAI
 from anthropic import Anthropic
 from core.data_models import QueryRequest
@@ -263,6 +264,120 @@ def generate_random_query(schema_info: Dict[str, Any]) -> str:
         return generate_random_query_with_anthropic(schema_info)
     else:
         raise ValueError("No LLM API key found. Please set either OPENAI_API_KEY or ANTHROPIC_API_KEY")
+
+def _build_synthetic_data_prompt(table_name: str, schema_info: Dict[str, Any], sample_rows: List[Dict[str, Any]], row_count: int) -> str:
+    table_schema = schema_info.get('tables', {}).get(table_name, {})
+    columns_desc = []
+    for col_name, col_type in table_schema.get('columns', {}).items():
+        columns_desc.append(f"  - {col_name} ({col_type})")
+    schema_text = "\n".join(columns_desc) if columns_desc else "  (no columns found)"
+
+    if sample_rows:
+        sample_text = json.dumps(sample_rows, indent=2, default=str)
+        data_section = f"Sample rows from the table (use these to understand data patterns):\n{sample_text}"
+    else:
+        data_section = "The table currently has no rows. Generate realistic data based purely on the column names and types."
+
+    return f"""You are a synthetic data generator. Generate exactly {row_count} new realistic data rows for the table "{table_name}".
+
+Table schema:
+{schema_text}
+
+{data_section}
+
+Requirements:
+- Return ONLY a valid JSON array of {row_count} objects, no markdown, no explanations, no code fences
+- Each object must use the exact column names from the schema
+- Match the data formats from the samples (emails, phone numbers, dates, IDs, etc.)
+- Respect value ranges and distributions observed in the samples
+- Keep relationships between columns coherent (e.g., city matches country)
+- Generate varied, realistic values — not copies of the sample rows
+- For nullable columns, occasionally use null values
+- Do NOT include auto-increment or index columns
+
+JSON array:"""
+
+
+def _parse_json_response(raw: str) -> List[Dict[str, Any]]:
+    text = raw.strip()
+    if text.startswith("```json"):
+        text = text[7:]
+    elif text.startswith("```"):
+        text = text[3:]
+    if text.endswith("```"):
+        text = text[:-3]
+    return json.loads(text.strip())
+
+
+def generate_synthetic_data_with_openai(
+    table_name: str,
+    schema_info: Dict[str, Any],
+    sample_rows: List[Dict[str, Any]],
+    row_count: int
+) -> List[Dict[str, Any]]:
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        raise ValueError("OPENAI_API_KEY environment variable not set")
+
+    client = OpenAI(api_key=api_key)
+    prompt = _build_synthetic_data_prompt(table_name, schema_info, sample_rows, row_count)
+
+    response = client.chat.completions.create(
+        model="gpt-4.1-2025-04-14",
+        messages=[
+            {"role": "system", "content": "You are a synthetic data generator. Return only valid JSON arrays."},
+            {"role": "user", "content": prompt}
+        ],
+        temperature=0.8,
+        max_tokens=2000
+    )
+
+    raw = response.choices[0].message.content.strip()
+    return _parse_json_response(raw)
+
+
+def generate_synthetic_data_with_anthropic(
+    table_name: str,
+    schema_info: Dict[str, Any],
+    sample_rows: List[Dict[str, Any]],
+    row_count: int
+) -> List[Dict[str, Any]]:
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise ValueError("ANTHROPIC_API_KEY environment variable not set")
+
+    client = Anthropic(api_key=api_key)
+    prompt = _build_synthetic_data_prompt(table_name, schema_info, sample_rows, row_count)
+
+    response = client.messages.create(
+        model="claude-sonnet-4-0",
+        max_tokens=2000,
+        temperature=0.8,
+        messages=[
+            {"role": "user", "content": prompt}
+        ]
+    )
+
+    raw = response.content[0].text.strip()
+    return _parse_json_response(raw)
+
+
+def generate_synthetic_data(
+    table_name: str,
+    schema_info: Dict[str, Any],
+    sample_rows: List[Dict[str, Any]],
+    row_count: int
+) -> List[Dict[str, Any]]:
+    openai_key = os.environ.get("OPENAI_API_KEY")
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
+
+    if openai_key:
+        return generate_synthetic_data_with_openai(table_name, schema_info, sample_rows, row_count)
+    elif anthropic_key:
+        return generate_synthetic_data_with_anthropic(table_name, schema_info, sample_rows, row_count)
+    else:
+        raise ValueError("No LLM API key found. Please set either OPENAI_API_KEY or ANTHROPIC_API_KEY")
+
 
 def generate_sql(request: QueryRequest, schema_info: Dict[str, Any]) -> str:
     """

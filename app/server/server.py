@@ -21,10 +21,13 @@ from core.data_models import (
     ColumnInfo,
     RandomQueryResponse,
     ExportRequest,
-    QueryExportRequest
+    QueryExportRequest,
+    GenerateDataRequest,
+    GenerateDataResponse,
 )
 from core.file_processor import convert_csv_to_sqlite, convert_json_to_sqlite, convert_jsonl_to_sqlite
 from core.llm_processor import generate_sql, generate_random_query
+from core.synthetic_data_generator import generate_and_insert_data
 from core.sql_processor import execute_sql_safely, get_database_schema
 from core.insights import generate_insights
 from core.sql_security import (
@@ -362,6 +365,46 @@ async def export_query_results(request: QueryExportRequest) -> Response:
         logger.error(f"[ERROR] Query export failed: {str(e)}")
         logger.error(f"[ERROR] Full traceback:\n{traceback.format_exc()}")
         raise HTTPException(500, f"Error exporting query results: {str(e)}")
+
+@app.post("/api/generate-data", response_model=GenerateDataResponse)
+async def generate_table_data(request: GenerateDataRequest) -> GenerateDataResponse:
+    """Generate synthetic data rows for a table using LLM"""
+    try:
+        validate_identifier(request.table_name, "table")
+        count, rows = generate_and_insert_data(request.table_name, request.row_count)
+        response = GenerateDataResponse(
+            table_name=request.table_name,
+            inserted_count=count,
+            sample_rows=rows,
+        )
+        logger.info(f"[SUCCESS] Generated {count} synthetic rows for table: {request.table_name}")
+        return response
+    except SQLSecurityError as e:
+        logger.error(f"[ERROR] Security error generating data for {request.table_name}: {str(e)}")
+        return GenerateDataResponse(
+            table_name=request.table_name,
+            inserted_count=0,
+            sample_rows=[],
+            error=str(e),
+        )
+    except ValueError as e:
+        logger.error(f"[ERROR] Value error generating data for {request.table_name}: {str(e)}")
+        return GenerateDataResponse(
+            table_name=request.table_name,
+            inserted_count=0,
+            sample_rows=[],
+            error=str(e),
+        )
+    except Exception as e:
+        logger.error(f"[ERROR] Failed to generate data for {request.table_name}: {str(e)}")
+        logger.error(f"[ERROR] Full traceback:\n{traceback.format_exc()}")
+        return GenerateDataResponse(
+            table_name=request.table_name,
+            inserted_count=0,
+            sample_rows=[],
+            error=str(e),
+        )
+
 
 if __name__ == "__main__":
     import uvicorn
