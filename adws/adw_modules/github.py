@@ -17,6 +17,7 @@ import subprocess
 import sys
 import os
 import json
+import time
 from typing import Dict, List, Optional
 from .data_types import GitHubIssue, GitHubIssueListItem, GitHubComment
 
@@ -124,16 +125,19 @@ def fetch_issue(issue_number: str, repo_path: str) -> GitHubIssue:
 
 
 def make_issue_comment(issue_id: str, comment: str) -> None:
-    """Post a comment to a GitHub issue using gh CLI."""
-    # Get repo information from git remote
+    """Post a comment to a GitHub issue using gh CLI.
+
+    Retries transient GitHub gateway errors (502/503/504) with exponential backoff.
+    Comments are observability, not workflow-critical: if all retries fail, the
+    error is logged and the function returns instead of raising, so a transient
+    GitHub outage cannot abort an otherwise-successful workflow run.
+    """
     github_repo_url = get_repo_url()
     repo_path = extract_repo_path(github_repo_url)
 
-    # Ensure comment has ADW_BOT_IDENTIFIER to prevent webhook loops
     if not comment.startswith(ADW_BOT_IDENTIFIER):
         comment = f"{ADW_BOT_IDENTIFIER} {comment}"
 
-    # Build command
     cmd = [
         "gh",
         "issue",
@@ -145,20 +149,42 @@ def make_issue_comment(issue_id: str, comment: str) -> None:
         comment,
     ]
 
-    # Set up environment with GitHub token if available
     env = get_github_env()
 
-    try:
-        result = subprocess.run(cmd, capture_output=True, text=True, env=env)
+    transient_markers = ("502", "503", "504", "timeout", "Gateway Timeout")
+    max_attempts = 5
+    last_stderr = ""
+
+    for attempt in range(1, max_attempts + 1):
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, env=env)
+        except Exception as e:
+            print(f"Error posting comment to issue #{issue_id}: {e}", file=sys.stderr)
+            return
 
         if result.returncode == 0:
             print(f"Successfully posted comment to issue #{issue_id}")
-        else:
-            print(f"Error posting comment: {result.stderr}", file=sys.stderr)
-            raise RuntimeError(f"Failed to post comment: {result.stderr}")
-    except Exception as e:
-        print(f"Error posting comment: {e}", file=sys.stderr)
-        raise
+            return
+
+        last_stderr = result.stderr
+        is_transient = any(m in last_stderr for m in transient_markers)
+        if is_transient and attempt < max_attempts:
+            delay = min(2 ** attempt, 30)
+            print(
+                f"Transient GitHub error on attempt {attempt}/{max_attempts}, retrying in {delay}s: {last_stderr.strip()}",
+                file=sys.stderr,
+            )
+            time.sleep(delay)
+            continue
+
+        # Final failure — log and continue instead of raising. Comments are
+        # observability; a 504 on a status comment must not crash the workflow.
+        print(
+            f"Failed to post comment to issue #{issue_id} after {attempt} attempt(s); "
+            f"continuing without it. Last error: {last_stderr.strip()}",
+            file=sys.stderr,
+        )
+        return
 
 
 def mark_issue_in_progress(issue_id: str) -> None:
