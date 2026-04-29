@@ -1,8 +1,9 @@
+import json
 import pytest
 import sqlite3
 import pandas as pd
 from io import StringIO
-from core.export_utils import generate_csv_from_data, generate_csv_from_table
+from core.export_utils import generate_csv_from_data, generate_csv_from_table, generate_json_from_data, generate_json_from_table
 
 
 class TestExportUtils:
@@ -214,5 +215,94 @@ class TestExportUtils:
         
         assert len(df) == 1
         assert df.iloc[0]['data'] == 'test data'
-        
+
+        conn.close()
+
+
+class TestJsonExportUtils:
+
+    def test_generate_json_from_data_empty(self):
+        """Empty data returns a JSON array []"""
+        result = generate_json_from_data([], [])
+        parsed = json.loads(result.decode('utf-8'))
+        assert parsed == []
+
+    def test_generate_json_from_data_basic(self):
+        """Column names appear as keys and values are correct"""
+        data = [
+            {'id': 1, 'name': 'Alice'},
+            {'id': 2, 'name': 'Bob'},
+        ]
+        columns = ['id', 'name']
+        result = generate_json_from_data(data, columns)
+        parsed = json.loads(result.decode('utf-8'))
+        assert len(parsed) == 2
+        assert parsed[0] == {'id': 1, 'name': 'Alice'}
+        assert parsed[1] == {'id': 2, 'name': 'Bob'}
+
+    def test_generate_json_from_data_types(self):
+        """int, float, string, bool, None round-trip correctly"""
+        data = [{'i': 42, 'f': 3.14, 's': 'hello', 'b': True, 'n': None}]
+        columns = ['i', 'f', 's', 'b', 'n']
+        result = generate_json_from_data(data, columns)
+        parsed = json.loads(result.decode('utf-8'))
+        row = parsed[0]
+        assert row['i'] == 42
+        assert abs(row['f'] - 3.14) < 1e-9
+        assert row['s'] == 'hello'
+        assert row['b'] is True
+        assert row['n'] is None
+
+    def test_generate_json_from_data_unicode(self):
+        """Emoji, Chinese characters, accented letters survive round-trip"""
+        data = [{'name': 'Test 测试', 'emoji': '😀🎉'}, {'name': 'Café', 'emoji': '☕'}]
+        columns = ['name', 'emoji']
+        result = generate_json_from_data(data, columns)
+        parsed = json.loads(result.decode('utf-8'))
+        assert parsed[0]['name'] == 'Test 测试'
+        assert parsed[0]['emoji'] == '😀🎉'
+        assert parsed[1]['name'] == 'Café'
+
+    def test_generate_json_from_data_special_chars(self):
+        """Strings containing quotes, newlines, tabs are properly escaped"""
+        data = [{'val': 'say "hi"'}, {'val': 'line1\nline2'}, {'val': 'col1\tcol2'}]
+        columns = ['val']
+        result = generate_json_from_data(data, columns)
+        parsed = json.loads(result.decode('utf-8'))
+        assert parsed[0]['val'] == 'say "hi"'
+        assert parsed[1]['val'] == 'line1\nline2'
+        assert parsed[2]['val'] == 'col1\tcol2'
+
+    def test_generate_json_from_table_basic(self):
+        """Reads a SQLite table and returns correct JSON"""
+        conn = sqlite3.connect(':memory:')
+        cursor = conn.cursor()
+        cursor.execute('CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)')
+        cursor.executemany('INSERT INTO t (name) VALUES (?)', [('Alice',), ('Bob',)])
+        conn.commit()
+
+        result = generate_json_from_table(conn, 't')
+        parsed = json.loads(result.decode('utf-8'))
+        assert len(parsed) == 2
+        names = {row['name'] for row in parsed}
+        assert names == {'Alice', 'Bob'}
+        conn.close()
+
+    def test_generate_json_from_table_empty(self):
+        """Empty table returns JSON []"""
+        conn = sqlite3.connect(':memory:')
+        cursor = conn.cursor()
+        cursor.execute('CREATE TABLE empty_t (id INTEGER PRIMARY KEY, val TEXT)')
+        conn.commit()
+
+        result = generate_json_from_table(conn, 'empty_t')
+        parsed = json.loads(result.decode('utf-8'))
+        assert parsed == []
+        conn.close()
+
+    def test_generate_json_from_table_nonexistent(self):
+        """Non-existent table raises ValueError"""
+        conn = sqlite3.connect(':memory:')
+        with pytest.raises(ValueError, match="Table 'nope' does not exist"):
+            generate_json_from_table(conn, 'nope')
         conn.close()
