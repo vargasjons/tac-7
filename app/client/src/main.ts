@@ -334,6 +334,31 @@ function displayTables(tables: TableSchema[]) {
     buttonsContainer.style.gap = '0.5rem';
     buttonsContainer.style.alignItems = 'center';
     
+    // Create generate data button
+    const generateButton = document.createElement('button');
+    generateButton.className = 'generate-data-button';
+    generateButton.innerHTML = '✨';
+    generateButton.title = 'Generate synthetic data rows using AI';
+    generateButton.onclick = async () => {
+      generateButton.disabled = true;
+      generateButton.innerHTML = '⏳';
+      try {
+        const result = await api.generateTableData(table.name);
+        generateButton.innerHTML = '✨';
+        generateButton.disabled = false;
+        if (result.error) {
+          displayError('Failed to generate data: ' + result.error);
+        } else {
+          await loadDatabaseSchema();
+          displaySuccess(`Generated ${result.inserted_count} new rows for "${table.name}"`);
+        }
+      } catch (error) {
+        generateButton.innerHTML = '✨';
+        generateButton.disabled = false;
+        displayError('Failed to generate data: ' + (error instanceof Error ? error.message : String(error)));
+      }
+    };
+
     // Create export button
     const exportButton = document.createElement('button');
     exportButton.className = 'export-button table-export-button';
@@ -346,13 +371,14 @@ function displayTables(tables: TableSchema[]) {
         displayError('Failed to export table');
       }
     };
-    
+
     const removeButton = document.createElement('button');
     removeButton.className = 'remove-table-button';
     removeButton.innerHTML = '&times;';
     removeButton.title = 'Remove table';
     removeButton.onclick = () => removeTable(table.name);
-    
+
+    buttonsContainer.appendChild(generateButton);
     buttonsContainer.appendChild(exportButton);
     buttonsContainer.appendChild(removeButton);
     
@@ -420,13 +446,35 @@ function displayError(message: string) {
   const errorDiv = document.createElement('div');
   errorDiv.className = 'error-message';
   errorDiv.textContent = message;
-  
+
   const resultsContainer = document.getElementById('results-container') as HTMLDivElement;
   resultsContainer.innerHTML = '';
   resultsContainer.appendChild(errorDiv);
-  
+
   const resultsSection = document.getElementById('results-section') as HTMLElement;
   resultsSection.style.display = 'block';
+}
+
+// Display inline success notification in tables section
+function displaySuccess(message: string) {
+  const successDiv = document.createElement('div');
+  successDiv.className = 'success-message';
+  successDiv.textContent = message;
+  successDiv.style.cssText = `
+    background: rgba(40, 167, 69, 0.1);
+    border: 1px solid var(--success-color);
+    color: var(--success-color);
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+  `;
+
+  const tablesSection = document.getElementById('tables-section') as HTMLElement;
+  tablesSection.insertBefore(successDiv, tablesSection.firstChild);
+
+  setTimeout(() => {
+    successDiv.remove();
+  }, 4000);
 }
 
 // Initialize modal

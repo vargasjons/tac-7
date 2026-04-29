@@ -84,3 +84,16 @@ interface HealthCheckResponse {
   version: string;
   uptime_seconds: number;
 }
+
+// Synthetic Data Generation Types
+interface GenerateDataRequest {
+  table_name: string;
+  row_count?: number;
+}
+
+interface GenerateDataResponse {
+  table_name: string;
+  inserted_count: number;
+  sample_rows: Record<string, any>[];
+  error?: string;
+}
